@@ -1,0 +1,97 @@
+---
+title: "Practical Machine Learning -- Dumbbell Exercises"
+author: "Pseudo1f"
+date: "Thursday, June 09, 2016"
+output: html_document
+---
+
+###Overview
+We attempt to predict the quality of dumbbell curls using a variety of variables
+and random forests as the machine learning component. On our training set
+of ~10,000 observations our model had accuracy of ~99.9%. Cross validation was done by
+3 folds, 3 repeats. The out of sample error was also ~99.9% on a set of ~10,000
+observations. We chose random forests as the machine learning algorithm due to 
+its high performance in online machine learning competition, though its high
+computational power was a deterrent.
+
+###Data and Analysis Choice
+The data come from the Human Activity Recognition (Velloso et al (2013))*.
+Let's do a quick look at the training and test data set.
+
+```{r, cache=TRUE}
+library(caret)
+library(randomForest)
+training_URL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+finaltesting_URL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+training<-read.csv(training_URL)
+finaltesting<-read.csv(finaltesting_URL)
+dim(training); dim(finaltesting)
+sum((apply(is.na(finaltesting),2,sum))>0)
+#So we can tell that not all the test variables have values
+#So now let's extract the list of variables that have non-missing values
+varlist<-(apply(is.na(finaltesting),2,sum)==0)
+#and let's take a look at this list
+training[1:5,varlist][,1:10]
+```
+Our training data is quite large. 160 variables. But only 60 variables are in
+the test set so we have a lot less to look at. You can tell that there are some
+variables that don't seem to be measurements, like the username. However, because
+the author doesn't have any business knowledge on measuring human activity we will
+make all of these part of the model.  
+As for model choice -- the author has a preference for random forests because of
+its proven practical ability. Random forests on such a large dataset will be very
+computationally intensive. In order to deal with this the author will only train
+the model on half of the full training set. Cross validation will be with three
+folds and three repetition. This may sound a bit low but a) there are computational
+constraints and then b) the author will still be able to validate the model on the
+other 50% of the training set to get a better sense of out of sample accuracy.  
+Now let's get to the model:
+
+###Model
+We're going to subset the training data so that it has only the variables we care
+about. We are then going to split the data in half and train it on one half using
+random forests and 3 folds, 3 repeats for cross validation.
+
+```{r, cache=TRUE}
+trainingsub<-training[varlist]
+set.seed(123)
+IndexTraining <- createDataPartition(y=training$classe, p=.5, list=FALSE)
+trainingsub1<-trainingsub[IndexTraining,]
+trainingsub2<-trainingsub[-IndexTraining,]
+#3 fold, 3 repeat cross validation
+fitcontrol <- trainControl(method="repeatedCV", number = 3, repeats=3)
+#now for the model
+modelrf <- train(classe~., data=trainingsub1, method="rf", trControl=fitcontrol, 
+                 prox=TRUE, allowParallel=TRUE)
+```
+
+We have a model, now let's take a look at it and its accuracy
+``` {r, cache=TRUE}
+print(modelrf)
+confusionMatrix(modelrf)
+```
+
+That accuracy is pretty high -- 99.7%. But  of course this is estimated on the 
+training data and therefore is biased upwards from the true out of sample error
+
+###Out of sample error
+To get a better sense of the out of sample error let's run predictions on the
+half of the data set we didn't use.
+
+``` {r, cache=TRUE}
+confusionMatrix(predict(modelrf, newdata=trainingsub2), trainingsub2$classe)
+```
+Accuracy was 99.99%. It's a bit strange but not unheard of to have accuracy
+in the out of sample data be higher than in the in sample data. Regardless,
+that tells us that we have a pretty good model and the out of sample accuracy
+is ~99.9%.
+
+Data: Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative 
+Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International 
+Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, 
+Germany: ACM SIGCHI, 2013.
+
+Read more: http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises#ixzz4BAneb2fD
+
+``` {r, cache=TRUE}
+```
