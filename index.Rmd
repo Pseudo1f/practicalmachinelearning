@@ -21,12 +21,14 @@ Let's do a quick look at the training and test data set.
 ```{r, cache=TRUE}
 library(caret)
 library(randomForest)
-training_URL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
-finaltesting_URL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
-training<-read.csv(training_URL)
-finaltesting<-read.csv(finaltesting_URL)
+setwd("~/Learning/Data Specialization/Practical Machine Learning")
+training<-read.csv("pml-training.csv")
+finaltesting<-read.csv("pml-testing.csv")
 dim(training); dim(finaltesting)
+
+sum((apply(is.na(training),2,sum))>0)
 sum((apply(is.na(finaltesting),2,sum))>0)
+
 #So we can tell that not all the test variables have values
 #So now let's extract the list of variables that have non-missing values
 varlist<-(apply(is.na(finaltesting),2,sum)==0)
@@ -35,14 +37,14 @@ training[1:5,varlist][,1:10]
 ```
 Our training data is quite large. 160 variables. But only 60 variables are in
 the test set so we have a lot less to look at. You can tell that there are some
-variables that don't seem to be measurements, like the username. However, because
-the author doesn't have any business knowledge on measuring human activity we will
-make all of these part of the model.  
+variables that don't seem to be measurements, like the username. Let's exclude these
+from the explanatory variable set since they may not be actual sensing measurements.  
+
 As for model choice -- the author has a preference for random forests because of
 its proven practical ability. Random forests on such a large dataset will be very
 computationally intensive. In order to deal with this the author will only train
 the model on half of the full training set. Cross validation will be with three
-folds and three repetition. This may sound a bit low but a) there are computational
+folds and three repetitions. This may sound a bit low but a) there are computational
 constraints and then b) the author will still be able to validate the model on the
 other 50% of the training set to get a better sense of out of sample accuracy.  
 Now let's get to the model:
@@ -54,8 +56,9 @@ random forests and 3 folds, 3 repeats for cross validation.
 
 ```{r, cache=TRUE}
 trainingsub<-training[varlist]
+trainingsub<-trainingsub[,8:60]
 set.seed(123)
-IndexTraining <- createDataPartition(y=training$classe, p=.5, list=FALSE)
+IndexTraining <- createDataPartition(y=trainingsub$classe, p=.5, list=FALSE)
 trainingsub1<-trainingsub[IndexTraining,]
 trainingsub2<-trainingsub[-IndexTraining,]
 #3 fold, 3 repeat cross validation
@@ -71,7 +74,7 @@ print(modelrf)
 confusionMatrix(modelrf)
 ```
 
-That accuracy is pretty high -- 99.7%. But  of course this is estimated on the 
+That accuracy is pretty high -- ~99%. But  of course this is estimated on the 
 training data and therefore is biased upwards from the true out of sample error
 
 ###Out of sample error
@@ -81,10 +84,9 @@ half of the data set we didn't use.
 ``` {r, cache=TRUE}
 confusionMatrix(predict(modelrf, newdata=trainingsub2), trainingsub2$classe)
 ```
-Accuracy was 99.99%. It's a bit strange but not unheard of to have accuracy
-in the out of sample data be higher than in the in sample data. Regardless,
-that tells us that we have a pretty good model and the out of sample accuracy
-is ~99.9%.
+Accuracy was 99%, very similar to that from th in sample data. That,
+ tells us that we have a pretty good model and the out of sample accuracy
+is ~99%.
 
 Data: Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative 
 Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International 
@@ -92,6 +94,3 @@ Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart,
 Germany: ACM SIGCHI, 2013.
 
 Read more: http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises#ixzz4BAneb2fD
-
-``` {r, cache=TRUE}
-```

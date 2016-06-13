@@ -74,27 +74,16 @@ img {
 <div id="data-and-analysis-choice" class="section level3">
 <h3>Data and Analysis Choice</h3>
 <p>The data come from the Human Activity Recognition (Velloso et al (2013))*. Let’s do a quick look at the training and test data set.</p>
-<pre class="r"><code>library(caret)</code></pre>
-<pre><code>## Warning: package 'caret' was built under R version 3.2.5</code></pre>
-<pre><code>## Loading required package: lattice</code></pre>
-<pre><code>## Loading required package: ggplot2</code></pre>
-<pre><code>## Warning: package 'ggplot2' was built under R version 3.2.4</code></pre>
-<pre class="r"><code>library(randomForest)</code></pre>
-<pre><code>## Warning: package 'randomForest' was built under R version 3.2.5</code></pre>
-<pre><code>## randomForest 4.6-12</code></pre>
-<pre><code>## Type rfNews() to see new features/changes/bug fixes.</code></pre>
-<pre><code>## 
-## Attaching package: 'randomForest'</code></pre>
-<pre><code>## The following object is masked from 'package:ggplot2':
-## 
-##     margin</code></pre>
-<pre class="r"><code>training_URL &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
-finaltesting_URL &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
-training&lt;-read.csv(training_URL)
-finaltesting&lt;-read.csv(finaltesting_URL)
+<pre class="r"><code>library(caret)
+library(randomForest)
+setwd(&quot;~/Learning/Data Specialization/Practical Machine Learning&quot;)
+training&lt;-read.csv(&quot;pml-training.csv&quot;)
+finaltesting&lt;-read.csv(&quot;pml-testing.csv&quot;)
 dim(training); dim(finaltesting)</code></pre>
 <pre><code>## [1] 19622   160</code></pre>
 <pre><code>## [1]  20 160</code></pre>
+<pre class="r"><code>sum((apply(is.na(training),2,sum))&gt;0)</code></pre>
+<pre><code>## [1] 67</code></pre>
 <pre class="r"><code>sum((apply(is.na(finaltesting),2,sum))&gt;0)</code></pre>
 <pre><code>## [1] 100</code></pre>
 <pre class="r"><code>#So we can tell that not all the test variables have values
@@ -114,14 +103,16 @@ training[1:5,varlist][,1:10]</code></pre>
 ## 3         no         11      1.42       8.07    -94.4
 ## 4         no         12      1.48       8.05    -94.4
 ## 5         no         12      1.48       8.07    -94.4</code></pre>
-<p>Our training data is quite large. 160 variables. But only 60 variables are in the test set so we have a lot less to look at. You can tell that there are some variables that don’t seem to be measurements, like the username. However, because the author doesn’t have any business knowledge on measuring human activity we will make all of these part of the model.<br />As for model choice – the author has a preference for random forests because of its proven practical ability. Random forests on such a large dataset will be very computationally intensive. In order to deal with this the author will only train the model on half of the full training set. Cross validation will be with three folds and three repetition. This may sound a bit low but a) there are computational constraints and then b) the author will still be able to validate the model on the other 50% of the training set to get a better sense of out of sample accuracy.<br />Now let’s get to the model:</p>
+<p>Our training data is quite large. 160 variables. But only 60 variables are in the test set so we have a lot less to look at. You can tell that there are some variables that don’t seem to be measurements, like the username. Let’s exclude these from the explanatory variable set since they may not be actual sensing measurements.</p>
+<p>As for model choice – the author has a preference for random forests because of its proven practical ability. Random forests on such a large dataset will be very computationally intensive. In order to deal with this the author will only train the model on half of the full training set. Cross validation will be with three folds and three repetitions. This may sound a bit low but a) there are computational constraints and then b) the author will still be able to validate the model on the other 50% of the training set to get a better sense of out of sample accuracy.<br />Now let’s get to the model:</p>
 </div>
 <div id="model" class="section level3">
 <h3>Model</h3>
 <p>We’re going to subset the training data so that it has only the variables we care about. We are then going to split the data in half and train it on one half using random forests and 3 folds, 3 repeats for cross validation.</p>
 <pre class="r"><code>trainingsub&lt;-training[varlist]
+trainingsub&lt;-trainingsub[,8:60]
 set.seed(123)
-IndexTraining &lt;- createDataPartition(y=training$classe, p=.5, list=FALSE)
+IndexTraining &lt;- createDataPartition(y=trainingsub$classe, p=.5, list=FALSE)
 trainingsub1&lt;-trainingsub[IndexTraining,]
 trainingsub2&lt;-trainingsub[-IndexTraining,]
 #3 fold, 3 repeat cross validation
@@ -163,7 +154,7 @@ modelrf &lt;- train(classe~., data=trainingsub1, method=&quot;rf&quot;, trContro
 ##          E  0.0  0.0  0.0  0.0 18.4
 ##                             
 ##  Accuracy (average) : 0.9998</code></pre>
-<p>That accuracy is pretty high – 99.7%. But of course this is estimated on the training data and therefore is biased upwards from the true out of sample error</p>
+<p>That accuracy is pretty high – ~99%. But of course this is estimated on the training data and therefore is biased upwards from the true out of sample error</p>
 </div>
 <div id="out-of-sample-error" class="section level3">
 <h3>Out of sample error</h3>
@@ -200,7 +191,7 @@ modelrf &lt;- train(classe~., data=trainingsub1, method=&quot;rf&quot;, trContro
 ## Detection Rate         0.2844   0.1935   0.1743   0.1639   0.1838
 ## Detection Prevalence   0.2844   0.1936   0.1743   0.1639   0.1838
 ## Balanced Accuracy      1.0000   0.9999   0.9997   1.0000   1.0000</code></pre>
-<p>Accuracy was 99.99%. It’s a bit strange but not unheard of to have accuracy in the out of sample data be higher than in the in sample data. Regardless, that tells us that we have a pretty good model and the out of sample accuracy is ~99.9%.</p>
+<p>Accuracy was 99%, very similar to that from th in sample data. That, tells us that we have a pretty good model and the out of sample accuracy is ~99%.</p>
 <p>Data: Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human ’13) . Stuttgart, Germany: ACM SIGCHI, 2013.</p>
 <p>Read more: <a href="http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises#ixzz4BAneb2fD" class="uri">http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises#ixzz4BAneb2fD</a></p>
 </div>
